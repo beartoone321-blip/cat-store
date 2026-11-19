@@ -1,53 +1,34 @@
 import sqlite3 as sql
 import streamlit as st
 import pandas as pd
+
+# ==========================================
+# ส่วนที่ 1: คลาสจัดการฐานข้อมูล (หลังบ้าน)
+# ==========================================
 class STORE:
     def __init__(self):
-        self.conn=sql.connect("store.db")
-        self.cursor=self.conn.cursor()
+        self.conn = sql.connect("store.db", check_same_thread=False)
+        self.cursor = self.conn.cursor()
 
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS products(
-        รหัสสินค้า TEXT PRIMARY KEY,
-        ชื่อสินค้า TEXT,
-        จำนวนสินค้า INTEGER)""")
+            รหัสสินค้า TEXT PRIMARY KEY,
+            ชื่อสินค้า TEXT,
+            จำนวนสินค้า INTEGER)""")
 
-    def CheckProduct(self,code):
-        self.cursor.execute("SELECT 1 FROM products WHERE รหัสสินค้า = ?",(code,))
-        result=self.cursor.fetchone()     
-        if result is not None:
-             return True
-        else:
-             return False
-        
-    def AddNewProduct(self,code,name,price):
-        if(self.CheckProduct(code)):
-            print("มีรายการสินคาอยู่ในระบบ")
-
-        else:
-            self.cursor.execute("INSERT INTO products VALUES(?, ?, ?)",(code, name, price))
-            self.conn.commit()
-            print(f"เพิ่มสินค้า: {code} : {name} : {price} ครั้งแรกสำเร็จ")
-
-    def ReduceStock(self, code, amount):
-        self.cursor.execute("SELECT จำนวนสินค้า FROM products WHERE รหัสสินค้า = ?", (code,))
+    def CheckProduct(self, code):
+        self.cursor.execute("SELECT 1 FROM products WHERE รหัสสินค้า = ?", (code,))
         result = self.cursor.fetchone()
-        if result is None:
-            return False, "❌ ไม่พบรหัสสินค้านี้ในระบบ"
-        current_stock = result[0]
-        if amount > current_stock:
-            return False, f"⚠️ สินค้าไม่พอให้ตัดสต็อก (เหลืออยู่แค่ {current_stock} ชิ้น)"
-        new_stock = current_stock - amount
-        self.cursor.execute("UPDATE products SET จำนวนสินค้า = ? WHERE รหัสสินค้า = ?", (new_stock, code))
-        self.conn.commit()
-        return True, f"✅ ตัดสต็อกรหัส '{code}' ออก {amount} ชิ้น (คงเหลือ {new_stock} ชิ้น)"
+        return result is not None
 
-    def DeleteProduct(self, code):
-        if not self.CheckProduct(code):
-            return False, f"❌ ไม่พบรหัสสินค้า '{code}' ในระบบ"
+    # 1. เพิ่มสินค้าใหม่ครั้งแรก
+    def AddNewProduct(self, code, name, amount):
+        if self.CheckProduct(code):
+            print("มีรายการสินค้าอยู่ในระบบ")
         else:
-            self.cursor.execute("DELETE FROM products WHERE รหัสสินค้า = ?", (code,))
+            self.cursor.execute("INSERT INTO products VALUES(?, ?, ?)", (code, name, amount))
             self.conn.commit()
-            return True, f"🗑️ ลบรายการสินค้ารหัส '{code}' ออกจากระบบเรียบร้อยแล้ว"
+
+    # 2. บวกเพิ่มจำนวนสินค้าเดิม (แก้เติม [0] เรียบร้อย)
     def AddStock(self, code, amount):
         self.cursor.execute("SELECT จำนวนสินค้า FROM products WHERE รหัสสินค้า = ?", (code,))
         result = self.cursor.fetchone()
@@ -55,16 +36,42 @@ class STORE:
         if result is None:
             return False, "❌ ไม่พบรหัสสินค้านี้ในระบบ (หากเป็นสินค้าใหม่ ให้เพิ่มที่แท็บแรก)"
             
-        current_stock = result
+        current_stock = result[0]
         new_stock = current_stock + amount
         self.cursor.execute("UPDATE products SET จำนวนสินค้า = ? WHERE รหัสสินค้า = ?", (new_stock, code))
         self.conn.commit()
         return True, f"✅ บวกเพิ่มสต็อกรหัส '{code}' อีก {amount} ชิ้น (รวมเป็น {new_stock} ชิ้น)"
 
+    # 3. ลดจำนวนสินค้า (แก้เติม [0] เรียบร้อย)
+    def ReduceStock(self, code, amount):
+        self.cursor.execute("SELECT จำนวนสินค้า FROM products WHERE รหัสสินค้า = ?", (code,))
+        result = self.cursor.fetchone()
+        
+        if result is None:
+            return False, "❌ ไม่พบรหัสสินค้านี้ในระบบ"
+            
+        current_stock = result[0]
+        if amount > current_stock:
+            return False, f"⚠️ สินค้าไม่พอให้ตัดสต็อก (เหลืออยู่แค่ {current_stock} ชิ้น)"
+            
+        new_stock = current_stock - amount
+        self.cursor.execute("UPDATE products SET จำนวนสินค้า = ? WHERE รหัสสินค้า = ?", (new_stock, code))
+        self.conn.commit()
+        return True, f"✅ ตัดสต็อกรหัส '{code}' ออก {amount} ชิ้น (คงเหลือ {new_stock} ชิ้น)"
+
+    # 4. ลบรายการสินค้าออกจากฐานข้อมูล
+    def DeleteProduct(self, code):
+        if not self.CheckProduct(code):
+            return False, f"❌ ไม่พบรหัสสินค้า '{code}' ในระบบ"
+        else:
+            self.cursor.execute("DELETE FROM products WHERE รหัสสินค้า = ?", (code,))
+            self.conn.commit()
+            return True, f"🗑️ ลบรายการสินค้ารหัส '{code}' ออกจากระบบเรียบร้อยแล้ว"
+
+    # 5. ค้นหาข้อมูลสินค้าตามรหัส
     def GetProductInfo(self, code):
         self.cursor.execute("SELECT ชื่อสินค้า, จำนวนสินค้า FROM products WHERE รหัสสินค้า = ?", (code,))
         return self.cursor.fetchone()
-
 
 # ==========================================
 # ส่วนที่ 2: หน้าต่างคุยกับผู้ใช้งาน (5 แท็บเมนู)
@@ -75,7 +82,6 @@ m = STORE()
 st.title("📦 CAT STOCK")
 st.caption("ระบบจัดการสต็อกสินค้าครบวงจร")
 
-# เพิ่มแท็บ "🔍 ค้นหาสินค้า" เข้าไปเป็น 5 แท็บ
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔍 ค้นหาสินค้า",
     "🆕 สินค้าใหม่", 
@@ -84,7 +90,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🗑️ ลบรายการ"
 ])
 
-# แท็บที่ 1: ค้นหาข้อมูลสินค้าตามรหัส (ส่วนที่เพิ่มใหม่)
+# แท็บที่ 1: ค้นหาข้อมูลสินค้าตามรหัส
 with tab1:
     with st.form("search_form"):
         s_code = st.text_input("ใส่รหัสสินค้าที่ต้องการตรวจสอบ", placeholder="เช่น P001")
@@ -98,7 +104,6 @@ with tab1:
                 if info is not None:
                     p_name, p_amount = info
                     st.success(f"✅ พบข้อมูลรหัสสินค้า: **{s_code}**")
-                    # แสดงชื่อสินค้าและจำนวนสินค้าแบบตัวใหญ่ชัดเจน
                     col1, col2 = st.columns(2)
                     col1.metric("ชื่อสินค้า", p_name)
                     col2.metric("จำนวนคงเหลือ", f"{p_amount} ชิ้น")
