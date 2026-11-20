@@ -6,11 +6,25 @@ from datetime import datetime, timezone, timedelta
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
 # ใส่ URL เว็บแอปของ Google Apps Script ที่คุณคัดลอกมาตรงนี้
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7K7FD1_zh4cxxQavOelZ76G3gOeBSZYtWypHw0l7mSPnX12qMuiZhsji5rZSmKfhO/exec"
+WEB_APP_URL = "https://google.com"
 
-def get_thai_time():
+def get_thai_date():
     tz = timezone(timedelta(hours=7))
     return datetime.now(tz).strftime("%d/%m/%Y")
+
+def format_thai_date_col(series):
+    def parse_val(val):
+        s = str(val).strip()
+        if "T" in s and s.endswith("Z"):
+            try:
+                dt = pd.to_datetime(s, utc=True).tz_convert("Asia/Bangkok")
+                return dt.strftime("%d/%m/%Y")
+            except Exception:
+                pass
+        if " " in s:
+            return s.split(" ").pop(0)
+        return s
+    return series.apply(parse_val)
 
 @st.cache_data(ttl=60)
 def load_data():
@@ -18,7 +32,8 @@ def load_data():
     data = res.json()
     if len(data) <= 1:
         return pd.DataFrame(columns=["รหัสสินค้า", "ชื่อสินค้า", "จำนวนสินค้า"])
-    df = pd.DataFrame(data[1:], columns=data[0])
+    header = data.pop(0)
+    df = pd.DataFrame(data, columns=header)
     df["รหัสสินค้า"] = df["รหัสสินค้า"].astype(str)
     df["ชื่อสินค้า"] = df["ชื่อสินค้า"].astype(str)
     df["จำนวนสินค้า"] = pd.to_numeric(df["จำนวนสินค้า"], errors="coerce").fillna(0).astype(int)
@@ -29,8 +44,13 @@ def load_history():
     res = requests.get(f"{WEB_APP_URL}?action=history")
     data = res.json()
     if len(data) <= 1:
-        return pd.DataFrame(columns=["วันที่-เวลา", "ประเภท", "รหัสสินค้า", "ชื่อสินค้า", "จำนวน", "ผู้ทำรายการ"])
-    df_hist = pd.DataFrame(data[1:], columns=data[0])
+        return pd.DataFrame(columns=["วันที่", "ประเภท", "รหัสสินค้า", "ชื่อสินค้า", "จำนวน", "ผู้ทำรายการ"])
+    header = data.pop(0)
+    df_hist = pd.DataFrame(data, columns=header)
+    if "วันที่-เวลา" in df_hist.columns:
+        df_hist = df_hist.rename(columns={"วันที่-เวลา": "วันที่"})
+    if "วันที่" in df_hist.columns:
+        df_hist["วันที่"] = format_thai_date_col(df_hist["วันที่"])
     df_hist["รหัสสินค้า"] = df_hist["รหัสสินค้า"].astype(str)
     df_hist["ชื่อสินค้า"] = df_hist["ชื่อสินค้า"].astype(str)
     return df_hist
@@ -41,8 +61,8 @@ def save_data(df):
     st.cache_data.clear()
 
 def save_history(action_type, code, name, amount, user):
-    timestamp = get_thai_time()
-    row = [timestamp, action_type, str(code), str(name), int(amount), str(user)]
+    date_str = get_thai_date()
+    row = [date_str, action_type, str(code), str(name), int(amount), str(user)]
     requests.post(WEB_APP_URL, json={"type": "history", "row": row})
     st.cache_data.clear()
 
@@ -117,7 +137,7 @@ with tab3:
             elif df.empty or a_code not in df["รหัสสินค้า"].values:
                 st.error("❌ ไม่พบรหัสสินค้านี้ในระบบ")
             else:
-                idx = df[df["รหัสสินค้า"] == a_code].index[0]
+                idx = df.index[df["รหัสสินค้า"] == a_code].tolist().pop(0)
                 p_name = df.at[idx, "ชื่อสินค้า"]
                 df.at[idx, "จำนวนสินค้า"] += int(a_amount)
                 new_stock = df.at[idx, "จำนวนสินค้า"]
@@ -138,7 +158,7 @@ with tab4:
             elif df.empty or r_code not in df["รหัสสินค้า"].values:
                 st.error("❌ ไม่พบรหัสสินค้านี้ในระบบ")
             else:
-                idx = df[df["รหัสสินค้า"] == r_code].index[0]
+                idx = df.index[df["รหัสสินค้า"] == r_code].tolist().pop(0)
                 p_name = df.at[idx, "ชื่อสินค้า"]
                 current_stock = df.at[idx, "จำนวนสินค้า"]
                 if r_amount > current_stock:
@@ -163,9 +183,9 @@ with tab5:
             elif df.empty or d_code not in df["รหัสสินค้า"].values:
                 st.error(f"❌ ไม่พบรหัสสินค้า '{d_code}' ในระบบ")
             else:
-                target_row = df[df["รหัสสินค้า"] == d_code].iloc[0]
-                p_name = target_row["ชื่อสินค้า"]
-                p_amount = target_row["จำนวนสินค้า"]
+                idx = df.index[df["รหัสสินค้า"] == d_code].tolist().pop(0)
+                p_name = df.at[idx, "ชื่อสินค้า"]
+                p_amount = df.at[idx, "จำนวนสินค้า"]
                 df = df[df["รหัสสินค้า"] != d_code]
                 save_data(df)
                 save_history("ลบรายการถาวร", d_code, p_name, p_amount, d_user)
@@ -190,6 +210,9 @@ with tab6:
             q_h = search_hist.strip()
             filtered_hist = filtered_hist[
                 (filtered_hist["รหัสสินค้า"].str.contains(q_h, case=False, na=False)) |
+            
+            filtered_hist = filtered_hist[
+                (filtered_hist["รหัสสินค้า"].str.contains(q_h, case=False, na=False)) |
                 (filtered_hist["ชื่อสินค้า"].str.contains(q_h, case=False, na=False))
             ]
         if not filtered_hist.empty:
@@ -207,6 +230,7 @@ with tab7:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.info("ยังไม่มีรายการสินค้าในระบบ")
+
 with tab8:
     st.subheader("⚠️ สินค้าขาดแคลน (คงเหลือ ≤ 2 ชิ้น)")
     if not df.empty:
