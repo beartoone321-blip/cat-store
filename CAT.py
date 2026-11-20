@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
 # ใส่ URL เว็บแอปของ Google Apps Script ที่คุณคัดลอกมาตรงนี้
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7K7FD1_zh4cxxQavOelZ76G3gOeBSZYtWypHw0l7mSPnX12qMuiZhsji5rZSmKfhO/exec"
+WEB_APP_URL = "https://google.com"
 
 def get_thai_time():
     tz = timezone(timedelta(hours=7))
@@ -56,7 +56,6 @@ st.caption("ระบบจัดการสต็อกสินค้าค�
 
 df = load_data()
 
-# เพิ่มแท็บ "📦 สินค้าทั้งหมด" และ "⚠️ สินค้าขาดแคลน" แยกเป็นหัวข้อใหม่
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🔍 ค้นหาสินค้า",
     "🆕 สินค้าใหม่", 
@@ -202,7 +201,21 @@ with tab6:
         st.info("ยังไม่มีประวัติการทำรายการในระบบ")
 
 with tab7:
-    st.subheader("📦 รายการสินค้าทั้งหมดในระบบ")
+    st.subheader("📦 สินค้าทั้งหมด")
     if not df.empty:
-        st.info(f"📊 จำนวนรายการสินค้าทั้งหมด: **{len(df)}** รายการ (รวมสต็อกทั้งหมด **{df['จำนวนสินค้า'].sum()}** ชิ้น)")
-        styled_all_df = df.style.map(highlight_low_stock, subset=["จำนวนสินค้า"])
+        st.info(f"มีรายการสินค้าทั้งหมด **{len(df)}** รายการ (รวมจำนวน **{df['จำนวนสินค้า'].sum()}** ชิ้น)")
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    else:
+        st.info("ยังไม่มีรายการสินค้าในระบบ")
+with tab8:
+    st.subheader("⚠️ สินค้าขาดแคลน (คงเหลือ ≤ 2 ชิ้น)")
+    if not df.empty:
+        low_stock_df = df[df["จำนวนสินค้า"] <= 2]
+        if low_stock_df.empty:
+            st.success("✅ ไม่มีสินค้าขาดแคลนในขณะนี้")
+        else:
+            st.warning(f"พบสินค้าขาดแคลนจำนวน **{len(low_stock_df)}** รายการ")
+            styled_low_df = low_stock_df.style.map(highlight_low_stock, subset=["จำนวนสินค้า"])
+            st.dataframe(styled_low_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("ยังไม่มีรายการสินค้าในระบบ")
