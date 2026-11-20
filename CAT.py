@@ -4,7 +4,7 @@ import requests
 
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
-WEB_APP_URL = "https://google.com"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzB0kaCUD78EtBP-mHATpAAUJsReWLOSYp8vHm2Mu225hP9i6Sde7qULBgrGOzaJ85l/exec"
 
 def load_data():
     res = requests.get(WEB_APP_URL)
