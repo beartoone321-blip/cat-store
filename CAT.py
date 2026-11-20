@@ -210,9 +210,6 @@ with tab6:
             q_h = search_hist.strip()
             filtered_hist = filtered_hist[
                 (filtered_hist["รหัสสินค้า"].str.contains(q_h, case=False, na=False)) |
-            
-            filtered_hist = filtered_hist[
-                (filtered_hist["รหัสสินค้า"].str.contains(q_h, case=False, na=False)) |
                 (filtered_hist["ชื่อสินค้า"].str.contains(q_h, case=False, na=False))
             ]
         if not filtered_hist.empty:
