@@ -10,7 +10,7 @@ WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7K7FD1_zh4cxxQavOelZ76G
 
 def get_thai_time():
     tz = timezone(timedelta(hours=7))
-    return datetime.now(tz).strftime("%d/%m/%Y %H:%M:%S")
+    return datetime.now(tz).strftime("%d/%m/%Y")
 
 @st.cache_data(ttl=60)
 def load_data():
