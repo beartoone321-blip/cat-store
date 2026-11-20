@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
 # ใส่ URL เว็บแอปของ Google Apps Script ที่คุณคัดลอกมาตรงนี้
-WEB_APP_URL = "https://google.com"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7K7FD1_zh4cxxQavOelZ76G3gOeBSZYtWypHw0l7mSPnX12qMuiZhsji5rZSmKfhO/exec"
 
 def get_thai_date():
     tz = timezone(timedelta(hours=7))
