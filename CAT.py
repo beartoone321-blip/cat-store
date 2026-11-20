@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
 # ใส่ URL เว็บแอปของ Google Apps Script ที่คุณคัดลอกมาตรงนี้
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwLS4xWdolP6TD30BAPfx7Lb0-QFa0gD52ccHRZrsZL3kbcXPOYnQnv2Ghm-g6I1vLI/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7K7FD1_zh4cxxQavOelZ76G3gOeBSZYtWypHw0l7mSPnX12qMuiZhsji5rZSmKfhO/exec"
 
 def get_thai_time():
     tz = timezone(timedelta(hours=7))
@@ -46,18 +46,26 @@ def save_history(action_type, code, name, amount, user):
     requests.post(WEB_APP_URL, json={"type": "history", "row": row})
     st.cache_data.clear()
 
+def highlight_low_stock(val):
+    if val <= 2:
+        return 'color: #FF4B4B; font-weight: bold;'
+    return ''
+
 st.title("📦 CAT STOCK")
 st.caption("ระบบจัดการสต็อกสินค้าครบวงจร")
 
 df = load_data()
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+# เพิ่มแท็บ "📦 สินค้าทั้งหมด" และ "⚠️ สินค้าขาดแคลน" แยกเป็นหัวข้อใหม่
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🔍 ค้นหาสินค้า",
     "🆕 สินค้าใหม่", 
     "➕ เพิ่มจำนวน", 
     "➖ ลดจำนวน", 
     "🗑️ ลบรายการ",
-    "📜 ประวัติเบิกเข้า-ออก"
+    "📜 ประวัติเบิกเข้า-ออก",
+    "📦 สินค้าทั้งหมด",
+    "⚠️ สินค้าขาดแคลน"
 ])
 
 with tab1:
@@ -193,17 +201,8 @@ with tab6:
     else:
         st.info("ยังไม่มีประวัติการทำรายการในระบบ")
 
-st.divider()
-
-def highlight_low_stock(val):
-    if val <= 2:
-        return 'color: #FF4B4B; font-weight: bold;'
-    return ''
-
-st.subheader("⚠️ สินค้าขาดแคลน (คงเหลือ ≤ 2 ชิ้น)")
-if not df.empty:
-    low_stock_df = df[df["จำนวนสินค้า"] <= 2]
-    if low_stock_df.empty:
-        st.success("✅ ไม่มีสินค้าขาดแคลนในขณะนี้")
-    else:
-        styled_low_df = low_stock_df.style.map(highlight_low_stock, subset=["จำนวนสินค้า"])
+with tab7:
+    st.subheader("📦 รายการสินค้าทั้งหมดในระบบ")
+    if not df.empty:
+        st.info(f"📊 จำนวนรายการสินค้าทั้งหมด: **{len(df)}** รายการ (รวมสต็อกทั้งหมด **{df['จำนวนสินค้า'].sum()}** ชิ้น)")
+        styled_all_df = df.style.map(highlight_low_stock, subset=["จำนวนสินค้า"])
