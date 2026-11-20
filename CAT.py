@@ -5,9 +5,9 @@ from datetime import datetime, timezone, timedelta
 
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyXNfLu6mVyy-kSliLWgJI_or5hEphwd1TEE_hYUdsFPQ-Lzmqzqf6z-mBL10OWhfTE/exec"
+# ใส่ URL เว็บแอปของ Google Apps Script ที่คุณคัดลอกมาตรงนี้
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwLS4xWdolP6TD30BAPfx7Lb0-QFa0gD52ccHRZrsZL3kbcXPOYnQnv2Ghm-g6I1vLI/exec"
 
-# ฟังก์ชันดึงเวลาปัจจุบันของไทย
 def get_thai_time():
     tz = timezone(timedelta(hours=7))
     return datetime.now(tz).strftime("%d/%m/%Y %H:%M:%S")
@@ -60,7 +60,6 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📜 ประวัติเบิกเข้า-ออก"
 ])
 
-# --- แท็บ 1: ค้นหาสินค้า (ค้นได้ทั้งรหัสและชื่อ) ---
 with tab1:
     with st.form("search_form"):
         s_query = st.text_input("ใส่รหัสสินค้า หรือ ชื่อสินค้าที่ต้องการตรวจสอบ", placeholder="เช่น A0001 หรือ มอเตอร์")
@@ -69,7 +68,6 @@ with tab1:
             if q == "":
                 st.warning("⚠️ กรุณากรอกรหัสหรือชื่อสินค้า")
             else:
-                # ค้นหาแบบตรงรหัส หรือ มีคำที่ตรงกับชื่อสินค้า (ไม่สนตัวพิมพ์เล็ก-ใหญ่)
                 result = df[
                     (df["รหัสสินค้า"].str.lower() == q.lower()) | 
                     (df["ชื่อสินค้า"].str.contains(q, case=False, na=False))
@@ -80,7 +78,6 @@ with tab1:
                 else:
                     st.error(f"❌ ไม่พบข้อมูลสินค้า '{q}' ในระบบ")
 
-# --- แท็บ 2: สินค้าใหม่ ---
 with tab2:
     with st.form("add_new_form", clear_on_submit=True):
         code = st.text_input("รหัสสินค้า", placeholder="เช่น P001")
@@ -101,7 +98,6 @@ with tab2:
                 st.success(f"✅ เพิ่มสินค้า {code} : {name} ({amount} ชิ้น) โดย {user_new} สำเร็จ!")
                 st.rerun()
 
-# --- แท็บ 3: เพิ่มจำนวน (เบิกเข้า) ---
 with tab3:
     with st.form("add_stock_form", clear_on_submit=True):
         a_code = st.text_input("รหัสสินค้าที่ต้องการเพิ่มสต็อก", placeholder="เช่น P001")
@@ -123,7 +119,6 @@ with tab3:
                 st.success(f"✅ บวกเพิ่ม '{p_name}' ({a_code}) อีก {a_amount} ชิ้น โดย {a_user} (รวม {new_stock} ชิ้น)")
                 st.rerun()
 
-# --- แท็บ 4: ลดจำนวน (เบิกออก) ---
 with tab4:
     with st.form("reduce_form", clear_on_submit=True):
         r_code = st.text_input("รหัสสินค้าที่ต้องการลดจำนวน", placeholder="เช่น P001")
@@ -149,7 +144,6 @@ with tab4:
                     st.success(f"✅ เบิกออก '{p_name}' ({r_code}) จำนวน {r_amount} ชิ้น โดย {r_user} (คงเหลือ {new_stock} ชิ้น)")
                     st.rerun()
 
-# --- แท็บ 5: ลบรายการ ---
 with tab5:
     with st.form("delete_form", clear_on_submit=True):
         st.warning("⚠️ การลบรายการสินค้าจะลบข้อมูลรหัสนี้ออกจากตารางถาวร")
@@ -165,46 +159,51 @@ with tab5:
                 target_row = df[df["รหัสสินค้า"] == d_code].iloc[0]
                 p_name = target_row["ชื่อสินค้า"]
                 p_amount = target_row["จำนวนสินค้า"]
-                
                 df = df[df["รหัสสินค้า"] != d_code]
                 save_data(df)
                 save_history("ลบรายการถาวร", d_code, p_name, p_amount, d_user)
                 st.success(f"🗑️ ลบสินค้ารหัส '{d_code}' ({p_name}) โดย {d_user} เรียบร้อยแล้ว")
                 st.rerun()
 
-# --- แท็บ 6: ประวัติการเบิกเข้า - เบิกออก ---
 with tab6:
     st.subheader("📜 ประวัติการเคลื่อนไหวสต็อก")
     df_hist = load_history()
-    
-    # แบ่ง 2 ฟังก์ชันให้เลือกตามที่ต้องการ
     hist_mode = st.radio(
         "เลือกประเภทประวัติที่ต้องการดู:",
         ["📥 1. ประวัติการเบิกเข้า", "📤 2. ประวัติการเบิกออก"],
         horizontal=True
     )
-    
     search_hist = st.text_input("🔍 ค้นหาประวัติ (พิมพ์รหัสสินค้า หรือ ชื่อสินค้า)", placeholder="ปล่อยว่างเพื่อดูทั้งหมด หรือพิมพ์คำค้นหา...")
-    
     if not df_hist.empty:
-        # กรองตามประเภทที่เลือก
         if "เบิกเข้า" in hist_mode:
             filtered_hist = df_hist[df_hist["ประเภท"].str.contains("เบิกเข้า", na=False)]
         else:
             filtered_hist = df_hist[df_hist["ประเภท"].str.contains("เบิกออก", na=False)]
-            
-        # กรองตามคำค้นหา (ถ้ามีการพิมพ์)
         if search_hist.strip() != "":
             q_h = search_hist.strip()
             filtered_hist = filtered_hist[
                 (filtered_hist["รหัสสินค้า"].str.contains(q_h, case=False, na=False)) |
                 (filtered_hist["ชื่อสินค้า"].str.contains(q_h, case=False, na=False))
             ]
-            
         if not filtered_hist.empty:
-            # เรียงลำดับเอาเหตุการณ์ล่าสุดขึ้นก่อน
             filtered_hist = filtered_hist.iloc[::-1]
             st.dataframe(filtered_hist, use_container_width=True, hide_index=True)
         else:
             st.info("ไม่พบข้อมูลประวัติตามเงื่อนไขที่ค้นหา")
     else:
+        st.info("ยังไม่มีประวัติการทำรายการในระบบ")
+
+st.divider()
+
+def highlight_low_stock(val):
+    if val <= 2:
+        return 'color: #FF4B4B; font-weight: bold;'
+    return ''
+
+st.subheader("⚠️ สินค้าขาดแคลน (คงเหลือ ≤ 2 ชิ้น)")
+if not df.empty:
+    low_stock_df = df[df["จำนวนสินค้า"] <= 2]
+    if low_stock_df.empty:
+        st.success("✅ ไม่มีสินค้าขาดแคลนในขณะนี้")
+    else:
+        styled_low_df = low_stock_df.style.map(highlight_low_stock, subset=["จำนวนสินค้า"])
