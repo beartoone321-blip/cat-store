@@ -1,21 +1,25 @@
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
+import requests
 
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
-conn = st.connection("gsheets", type=GSheetsConnection)
+# URL เว็บแอปจาก Google Apps Script ของคุณ
+WEB_APP_URL = "https://google.com"
 
 def load_data():
-    df = conn.read(worksheet="Sheet1", ttl=0)
-    df = df.dropna(how="all")
-    if not df.empty:
-        df["รหัสสินค้า"] = df["รหัสสินค้า"].astype(str)
-        df["จำนวนสินค้า"] = pd.to_numeric(df["จำนวนสินค้า"], errors="coerce").fillna(0).astype(int)
+    res = requests.get(WEB_APP_URL)
+    data = res.json()
+    if len(data) <= 1:
+        return pd.DataFrame(columns=["รหัสสินค้า", "ชื่อสินค้า", "จำนวนสินค้า"])
+    df = pd.DataFrame(data[1:], columns=data[0])
+    df["รหัสสินค้า"] = df["รหัสสินค้า"].astype(str)
+    df["จำนวนสินค้า"] = pd.to_numeric(df["จำนวนสินค้า"], errors="coerce").fillna(0).astype(int)
     return df
 
 def save_data(df):
-    conn.update(worksheet="Sheet1", data=df)
+    rows = [df.columns.tolist()] + df.values.tolist()
+    requests.post(WEB_APP_URL, json=rows)
 
 st.title("📦 CAT STOCK")
 st.caption("ระบบจัดการสต็อกสินค้าครบวงจร")
