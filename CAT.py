@@ -28,13 +28,13 @@ class STORE:
             self.cursor.execute("INSERT INTO products VALUES(?, ?, ?)", (code, name, amount))
             self.conn.commit()
 
-    # 2. บวกเพิ่มจำนวนสินค้าเดิม (แก้เติม [0] เรียบร้อย)
+    # 2. บวกเพิ่มจำนวนสินค้าเดิม
     def AddStock(self, code, amount):
         self.cursor.execute("SELECT จำนวนสินค้า FROM products WHERE รหัสสินค้า = ?", (code,))
         result = self.cursor.fetchone()
         
         if result is None:
-            return False, "❌ ไม่พบรหัสสินค้านี้ในระบบ (หากเป็นสินค้าใหม่ ให้เพิ่มที่แท็บแรก)"
+            return False, "❌ ไม่พบรหัสสินค้านี้ในระบบ (หากเป็นสินค้าใหม่ ให้เพิ่มที่แท็บ '🆕 สินค้าใหม่')"
             
         current_stock = result[0]
         new_stock = current_stock + amount
@@ -42,7 +42,7 @@ class STORE:
         self.conn.commit()
         return True, f"✅ บวกเพิ่มสต็อกรหัส '{code}' อีก {amount} ชิ้น (รวมเป็น {new_stock} ชิ้น)"
 
-    # 3. ลดจำนวนสินค้า (แก้เติม [0] เรียบร้อย)
+    # 3. ลดจำนวนสินค้า
     def ReduceStock(self, code, amount):
         self.cursor.execute("SELECT จำนวนสินค้า FROM products WHERE รหัสสินค้า = ?", (code,))
         result = self.cursor.fetchone()
@@ -179,13 +179,40 @@ with tab5:
                     st.error(msg)
 
 # ==========================================
-# ส่วนที่ 3: ตารางแสดงรายการสินค้าทั้งหมด
+# ส่วนที่ 3: ตารางแสดงรายการสินค้าทั้งหมด และ สินค้าขาดแคลน
 # ==========================================
 st.divider()
-st.subheader("📋 รายการสินค้าทั้งหมดในระบบ")
+
+# ดึงข้อมูลทั้งหมดจากฐานข้อมูล
 df = pd.read_sql_query("SELECT * FROM products", m.conn)
+
+# ฟังก์ชันสำหรับกำหนดสีตัวอักษร (ถ้า <= 2 ให้เป็นสีแดงตัวหนา)
+def highlight_low_stock(val):
+    if val <= 2:
+        return 'color: #FF4B4B; font-weight: bold;'
+    return ''
+
+# --- หัวข้อใหม่: รายการสินค้าขาดแคลน ---
+st.subheader("⚠️ สินค้าขาดแคลน (คงเหลือ ≤ 2 ชิ้น)")
+
+if not df.empty:
+    low_stock_df = df[df["จำนวนสินค้า"] <= 2]
+    
+    if low_stock_df.empty:
+        st.success("✅ ไม่มีสินค้าขาดแคลนในขณะนี้")
+    else:
+        styled_low_df = low_stock_df.style.map(highlight_low_stock, subset=["จำนวนสินค้า"])
+        st.dataframe(styled_low_df, use_container_width=True, hide_index=True)
+else:
+    st.info("ยังไม่มีรายการสินค้าในระบบ")
+
+st.divider()
+
+# --- หัวข้อเดิม: รายการสินค้าทั้งหมด ---
+st.subheader("📋 รายการสินค้าทั้งหมดในระบบ")
 
 if df.empty:
     st.info("ยังไม่มีรายการสินค้าในระบบ")
 else:
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    styled_all_df = df.style.map(highlight_low_stock, subset=["จำนวนสินค้า"])
+    st.dataframe(styled_all_df, use_container_width=True, hide_index=True)
