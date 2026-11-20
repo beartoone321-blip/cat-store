@@ -4,7 +4,6 @@ import requests
 
 st.set_page_config(page_title="CAT STOCK", page_icon="📦", layout="centered")
 
-# URL เว็บแอปจาก Google Apps Script ของคุณ
 WEB_APP_URL = "https://google.com"
 
 def load_data():
